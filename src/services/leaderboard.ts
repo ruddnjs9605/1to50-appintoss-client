@@ -11,7 +11,7 @@ type SubmitResult = {
 const MIN_VERSION = {
   android: "5.221.0",
   ios: "5.221.0",
-};
+} as const;
 
 export async function submitLeaderboardScore(score: number) {
   const isSupported = isMinVersionSupported(MIN_VERSION);
