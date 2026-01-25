@@ -75,6 +75,7 @@ export default function App() {
           onRanking={handleOpenLeaderboard}
           onShare={handleShareRecord}
           onHome={startGame}
+          user={user}
         />
       );
     case "ranking":

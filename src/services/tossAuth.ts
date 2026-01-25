@@ -4,7 +4,7 @@ import { baseURL } from "./api";
 
 export const AUTH_USER_ID_KEY = "one-to-fifty:userId";
 
-type UserProfile = {
+export type TossUserProfile = {
   id: number;
   name: string | null;
   birthYear: number | null;
@@ -29,7 +29,7 @@ function clearUserId() {
   window.localStorage.removeItem(AUTH_USER_ID_KEY);
 }
 
-async function fetchMe(userId: number): Promise<UserProfile | null> {
+async function fetchMe(userId: number): Promise<TossUserProfile | null> {
   const response = await fetch(`${baseURL}/auth/me`, {
     method: "GET",
     headers: { "X-User-Id": String(userId) },
@@ -48,7 +48,7 @@ async function fetchMe(userId: number): Promise<UserProfile | null> {
 
 export function useTossAuth() {
   const [userId, setUserId] = useState<number | null>(() => loadStoredUserId());
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const [user, setUser] = useState<TossUserProfile | null>(null);
   const [isChecking, setIsChecking] = useState(Boolean(userId));
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
