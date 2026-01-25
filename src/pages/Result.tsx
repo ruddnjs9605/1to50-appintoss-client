@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import BackButton from "../components/BackButton";
 import Button from "../components/Button";
 import type { OneToFiftyResult } from "../game/types";
-import { showRewardedAdOnce } from "../services/rewardedAd";
+import { showInterstitialAdOnce } from "../services/interstitialAd";
 import type { AgeGroup, StatsResponse } from "../services/statsApi";
 import { fetchStats } from "../services/statsApi";
 import type { TossUserProfile } from "../services/tossAuth";
@@ -88,8 +88,8 @@ export default function Result({
     const adKey = `${result.myTime}-${result.rankPercent}-${result.averageTime}`;
     if (adKeyRef.current === adKey) return;
     adKeyRef.current = adKey;
-    showRewardedAdOnce().catch((error) => {
-      console.warn("[rewarded-ad] failed", error);
+    showInterstitialAdOnce().catch((error) => {
+      console.warn("[interstitial-ad] failed", error);
     });
   }, [result]);
 

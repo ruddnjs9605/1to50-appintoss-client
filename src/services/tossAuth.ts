@@ -10,6 +10,8 @@ export type TossUserProfile = {
   birthYear: number | null;
 };
 
+export type AuthStatus = "checking" | "loggedIn" | "loggedOut" | "unknown";
+
 function loadStoredUserId() {
   if (typeof window === "undefined") return null;
   const raw = window.localStorage.getItem(AUTH_USER_ID_KEY);
@@ -29,20 +31,36 @@ function clearUserId() {
   window.localStorage.removeItem(AUTH_USER_ID_KEY);
 }
 
-async function fetchMe(userId: number): Promise<TossUserProfile | null> {
+async function fetchMe(
+  userId: number
+): Promise<{ status: "loggedIn" | "loggedOut" | "unknown"; user: TossUserProfile | null }> {
   const response = await fetch(`${baseURL}/auth/me`, {
     method: "GET",
     headers: { "X-User-Id": String(userId) },
   });
 
-  if (!response.ok) return null;
+  if (response.status === 401) {
+    return { status: "loggedOut", user: null };
+  }
+  if (response.status >= 500) {
+    return { status: "unknown", user: null };
+  }
+  if (!response.ok) {
+    return { status: "unknown", user: null };
+  }
+
   const data = await response.json();
-  if (!data?.loggedIn) return null;
+  if (!data?.loggedIn) {
+    return { status: "loggedOut", user: null };
+  }
 
   return {
-    id: userId,
-    name: data.user?.name ?? null,
-    birthYear: data.user?.birthYear ?? null,
+    status: "loggedIn",
+    user: {
+      id: userId,
+      name: data.user?.name ?? null,
+      birthYear: data.user?.birthYear ?? null,
+    },
   };
 }
 
@@ -52,35 +70,45 @@ export function useTossAuth() {
   const [isChecking, setIsChecking] = useState(Boolean(userId));
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<AuthStatus>(
+    userId ? "checking" : "loggedOut"
+  );
 
   useEffect(() => {
     if (!userId) {
       setUser(null);
       setIsChecking(false);
+      setStatus("loggedOut");
       return;
     }
 
     let active = true;
     setIsChecking(true);
+    setStatus("checking");
     fetchMe(userId)
-      .then((profile) => {
+      .then((result) => {
         if (!active) return;
-        if (!profile) {
+        if (result.status === "loggedIn" && result.user) {
+          console.info("[toss-login] /auth/me logged in");
+          setUser(result.user);
+          setStatus("loggedIn");
+          return;
+        }
+        if (result.status === "loggedOut") {
           console.info("[toss-login] /auth/me not logged in");
           clearUserId();
           setUserId(null);
           setUser(null);
+          setStatus("loggedOut");
           return;
         }
-        console.info("[toss-login] /auth/me logged in");
-        setUser(profile);
+        console.warn("[toss-login] /auth/me unknown");
+        setStatus("unknown");
       })
       .catch(() => {
         if (!active) return;
         console.error("[toss-login] /auth/me failed");
-        clearUserId();
-        setUserId(null);
-        setUser(null);
+        setStatus("unknown");
       })
       .finally(() => {
         if (!active) return;
@@ -141,13 +169,14 @@ export function useTossAuth() {
         throw new Error("Invalid userId");
       }
 
-      storeUserId(nextUserId);
-      setUserId(nextUserId);
-      setUser({ id: nextUserId, name: null, birthYear: null });
-      console.info("[toss-login] login completed", nextUserId);
-    } catch (loginError) {
-      let message =
-        loginError instanceof Error
+    storeUserId(nextUserId);
+    setUserId(nextUserId);
+    setUser({ id: nextUserId, name: null, birthYear: null });
+    setStatus("loggedIn");
+    console.info("[toss-login] login completed", nextUserId);
+  } catch (loginError) {
+    let message =
+      loginError instanceof Error
           ? loginError.message
           : "알 수 없는 오류가 발생했어요.";
       if (message.toLowerCase().includes("failed to fetch")) {
@@ -164,6 +193,7 @@ export function useTossAuth() {
     clearUserId();
     setUserId(null);
     setUser(null);
+    setStatus("loggedOut");
   }, []);
 
   return {
@@ -171,6 +201,7 @@ export function useTossAuth() {
     isChecking,
     isLoggingIn,
     error,
+    status,
     login,
     logout,
     user,

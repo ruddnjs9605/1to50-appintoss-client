@@ -14,7 +14,7 @@ import "./styles/pages.css";
 type Page = "game" | "result" | "ranking";
 
 export default function App() {
-  const { isLoggedIn, isChecking, isLoggingIn, error, login, user } =
+  const { isLoggedIn, isChecking, isLoggingIn, error, status, login, user } =
     useTossAuth();
   const [page, setPage] = useState<Page>("game");
   const [lastResult, setLastResult] = useState<OneToFiftyResult | null>(null);
@@ -48,13 +48,24 @@ export default function App() {
     return <Terms />;
   }
 
-  if (!isLoggedIn) {
+  if (!isLoggedIn && status !== "unknown") {
     return (
       <Login
         onLogin={handleLogin}
         isChecking={isChecking}
         isLoggingIn={isLoggingIn}
         error={error}
+      />
+    );
+  }
+
+  if (!isLoggedIn && status === "unknown") {
+    return (
+      <Login
+        onLogin={handleLogin}
+        isChecking
+        isLoggingIn={isLoggingIn}
+        error={"네트워크 상태가 불안정해요. 잠시 후 다시 시도해 주세요."}
       />
     );
   }
