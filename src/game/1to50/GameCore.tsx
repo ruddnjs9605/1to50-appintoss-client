@@ -11,7 +11,10 @@ import { useRanking } from "../../ranking/useRanking";
 import type { OneToFiftyGameCoreProps } from "../types";
 import { submitLeaderboardScore } from "../../services/leaderboard";
 import { submitOneToFiftyResult } from "../../services/oneToFiftyApi";
-import { showInterstitialAdOnce } from "../../services/interstitialAd";
+import {
+  preloadInterstitialAd,
+  showInterstitialAdIfReady,
+} from "../../services/interstitialAd";
 
 export default function GameCore({ onFinish }: OneToFiftyGameCoreProps) {
   const game = useGame();
@@ -29,7 +32,8 @@ export default function GameCore({ onFinish }: OneToFiftyGameCoreProps) {
     Awaited<ReturnType<typeof submitOneToFiftyResult>>
   > | null>(null);
   const finishInProgressRef = useRef(false);
-  const adAttemptedRef = useRef(false);
+  const adShownRef = useRef(false);
+  const adPreloadedRef = useRef(false);
   const [feedback, setFeedback] = useState<("correct" | "wrong" | null)[]>(
     () => Array(25).fill(null)
   );
@@ -41,6 +45,9 @@ export default function GameCore({ onFinish }: OneToFiftyGameCoreProps) {
     setIsNewRecord(false);
     setIsPaused(false);
     setTimerKey((prev) => prev + 1);
+    adShownRef.current = false;
+    adPreloadedRef.current = true;
+    preloadInterstitialAd();
     game.startGame();
   };
 
@@ -49,6 +56,9 @@ export default function GameCore({ onFinish }: OneToFiftyGameCoreProps) {
     setIsNewRecord(false);
     setIsPaused(false);
     setTimerKey((prev) => prev + 1);
+    adShownRef.current = false;
+    adPreloadedRef.current = true;
+    preloadInterstitialAd();
     game.restart();
   };
 
@@ -79,23 +89,21 @@ export default function GameCore({ onFinish }: OneToFiftyGameCoreProps) {
     finishInProgressRef.current = true;
 
     const resultPromise = ensureResultPromise();
-    const adPromise = adAttemptedRef.current
-      ? Promise.resolve()
-      : showInterstitialAdOnce()
-          .catch((error) => {
-            console.warn("[interstitial-ad] skipped", error);
-          })
-          .finally(() => {
-            adAttemptedRef.current = true;
-          });
-
-    Promise.all([resultPromise, adPromise])
-      .then(([result]) => {
+    resultPromise
+      .then((result) => {
         onFinish(result);
       })
       .catch(() => {
         finishInProgressRef.current = false;
       });
+  };
+
+  const runAdFlow = () => {
+    if (adShownRef.current) return;
+    adShownRef.current = true;
+    showInterstitialAdIfReady().catch((error) => {
+      console.warn("[interstitial-ad] skipped", error);
+    });
   };
 
   const handleClick = (n: number | null, idx: number) => {
@@ -142,8 +150,16 @@ export default function GameCore({ onFinish }: OneToFiftyGameCoreProps) {
       resultRef.current = null;
       resultPromiseRef.current = null;
       finishInProgressRef.current = false;
-      adAttemptedRef.current = false;
+      adShownRef.current = false;
+      adPreloadedRef.current = false;
     }
+  }, [game.started]);
+
+  useEffect(() => {
+    if (!game.started) return;
+    if (adPreloadedRef.current) return;
+    adPreloadedRef.current = true;
+    preloadInterstitialAd();
   }, [game.started]);
 
   useEffect(() => {
@@ -188,6 +204,7 @@ export default function GameCore({ onFinish }: OneToFiftyGameCoreProps) {
   useEffect(() => {
     if (!game.cleared) return;
     if (elapsed <= 0) return;
+    runAdFlow();
     runFinishFlow();
   }, [game.cleared, elapsed]);
 

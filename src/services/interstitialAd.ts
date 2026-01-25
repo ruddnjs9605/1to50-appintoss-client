@@ -4,6 +4,7 @@ const AD_GROUP_ID = "ait.v2.live.3a3f6f467be94b4e";
 const LOAD_TIMEOUT_MS = 4000;
 
 let loadPromise: Promise<boolean> | null = null;
+let isLoaded = false;
 
 function isSupported() {
   const loadSupported = GoogleAdMob.loadAppsInTossAdMob.isSupported?.() !== false;
@@ -30,6 +31,7 @@ function loadInterstitialAd(): Promise<boolean> {
         resolved = true;
         cleanup?.();
         loadPromise = null;
+        isLoaded = true;
         resolve(true);
       },
       onError: (error) => {
@@ -38,6 +40,7 @@ function loadInterstitialAd(): Promise<boolean> {
         resolved = true;
         cleanup?.();
         loadPromise = null;
+        isLoaded = false;
         resolve(false);
       },
     });
@@ -48,6 +51,7 @@ function loadInterstitialAd(): Promise<boolean> {
       resolved = true;
       cleanup?.();
       loadPromise = null;
+      isLoaded = false;
       resolve(false);
     }, LOAD_TIMEOUT_MS);
   });
@@ -55,17 +59,20 @@ function loadInterstitialAd(): Promise<boolean> {
   return loadPromise;
 }
 
-export async function showInterstitialAdOnce() {
+export function preloadInterstitialAd() {
+  loadInterstitialAd().catch(() => {});
+}
+
+export async function showInterstitialAdIfReady() {
   if (!isSupported()) {
     console.warn("[interstitial-ad] unsupported");
     return "unsupported";
   }
 
-  console.info("[interstitial-ad] start");
-  const loaded = await loadInterstitialAd();
-  if (!loaded) {
+  if (!isLoaded) {
     console.warn("[interstitial-ad] skipped (not loaded)");
-    return "failed";
+    preloadInterstitialAd();
+    return "not_loaded";
   }
 
   return new Promise<"dismissed" | "failed">((resolve) => {
@@ -91,10 +98,12 @@ export async function showInterstitialAdOnce() {
               break;
             case "dismissed":
               console.info("[interstitial-ad] dismissed");
+              isLoaded = false;
               finish("dismissed");
               break;
             case "failedToShow":
               console.warn("[interstitial-ad] failed to show");
+              isLoaded = false;
               finish("failed");
               break;
             default:
@@ -103,11 +112,13 @@ export async function showInterstitialAdOnce() {
         },
         onError: (error) => {
           console.warn("[interstitial-ad] show error", error);
+          isLoaded = false;
           finish("failed");
         },
       });
     } catch (error) {
       console.warn("[interstitial-ad] show exception", error);
+      isLoaded = false;
       finish("failed");
     }
   });
