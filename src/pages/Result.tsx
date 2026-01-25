@@ -1,8 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import BackButton from "../components/BackButton";
 import Button from "../components/Button";
 import type { OneToFiftyResult } from "../game/types";
-import { showInterstitialAdOnce } from "../services/interstitialAd";
 import type { AgeGroup, StatsResponse } from "../services/statsApi";
 import { fetchStats } from "../services/statsApi";
 import type { TossUserProfile } from "../services/tossAuth";
@@ -45,7 +44,6 @@ export default function Result({
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsError, setStatsError] = useState<string | null>(null);
-  const adKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!options.find((option) => option.value === ageGroup)) {
@@ -82,16 +80,6 @@ export default function Result({
 
   const ageLabel =
     options.find((option) => option.value === ageGroup)?.label ?? "전체";
-
-  useEffect(() => {
-    if (!result) return;
-    const adKey = `${result.myTime}-${result.rankPercent}-${result.averageTime}`;
-    if (adKeyRef.current === adKey) return;
-    adKeyRef.current = adKey;
-    showInterstitialAdOnce().catch((error) => {
-      console.warn("[interstitial-ad] failed", error);
-    });
-  }, [result]);
 
   const fallbackDistribution = [2, 4, 7, 11, 15, 17, 14, 11, 8, 6, 5];
   const distribution = stats?.distribution?.length

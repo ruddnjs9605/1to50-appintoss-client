@@ -11,6 +11,7 @@ import { useRanking } from "../../ranking/useRanking";
 import type { OneToFiftyGameCoreProps } from "../types";
 import { submitLeaderboardScore } from "../../services/leaderboard";
 import { submitOneToFiftyResult } from "../../services/oneToFiftyApi";
+import { showInterstitialAdOnce } from "../../services/interstitialAd";
 
 export default function GameCore({ onFinish }: OneToFiftyGameCoreProps) {
   const game = useGame();
@@ -27,6 +28,8 @@ export default function GameCore({ onFinish }: OneToFiftyGameCoreProps) {
   const resultPromiseRef = useRef<Promise<
     Awaited<ReturnType<typeof submitOneToFiftyResult>>
   > | null>(null);
+  const finishInProgressRef = useRef(false);
+  const adAttemptedRef = useRef(false);
   const [feedback, setFeedback] = useState<("correct" | "wrong" | null)[]>(
     () => Array(25).fill(null)
   );
@@ -49,10 +52,9 @@ export default function GameCore({ onFinish }: OneToFiftyGameCoreProps) {
     game.restart();
   };
 
-  const handleFinish = () => {
+  const ensureResultPromise = () => {
     if (resultRef.current) {
-      onFinish(resultRef.current);
-      return;
+      return Promise.resolve(resultRef.current);
     }
 
     if (!resultPromiseRef.current) {
@@ -69,11 +71,31 @@ export default function GameCore({ onFinish }: OneToFiftyGameCoreProps) {
         });
     }
 
-    resultPromiseRef.current
-      .then((result) => {
+    return resultPromiseRef.current;
+  };
+
+  const runFinishFlow = () => {
+    if (finishInProgressRef.current) return;
+    finishInProgressRef.current = true;
+
+    const resultPromise = ensureResultPromise();
+    const adPromise = adAttemptedRef.current
+      ? Promise.resolve()
+      : showInterstitialAdOnce()
+          .catch((error) => {
+            console.warn("[interstitial-ad] skipped", error);
+          })
+          .finally(() => {
+            adAttemptedRef.current = true;
+          });
+
+    Promise.all([resultPromise, adPromise])
+      .then(([result]) => {
         onFinish(result);
       })
-      .catch(() => {});
+      .catch(() => {
+        finishInProgressRef.current = false;
+      });
   };
 
   const handleClick = (n: number | null, idx: number) => {
@@ -119,6 +141,8 @@ export default function GameCore({ onFinish }: OneToFiftyGameCoreProps) {
       submittedRef.current = false;
       resultRef.current = null;
       resultPromiseRef.current = null;
+      finishInProgressRef.current = false;
+      adAttemptedRef.current = false;
     }
   }, [game.started]);
 
@@ -159,6 +183,12 @@ export default function GameCore({ onFinish }: OneToFiftyGameCoreProps) {
     }, 600);
 
     return () => window.clearTimeout(timerId);
+  }, [game.cleared, elapsed]);
+
+  useEffect(() => {
+    if (!game.cleared) return;
+    if (elapsed <= 0) return;
+    runFinishFlow();
   }, [game.cleared, elapsed]);
 
   return (
@@ -215,7 +245,7 @@ export default function GameCore({ onFinish }: OneToFiftyGameCoreProps) {
             bestTime={bestTime}
             isNewRecord={isNewRecord}
             onRestart={handleRestart}
-            onFinish={handleFinish}
+            onFinish={runFinishFlow}
           />
         )}
 
