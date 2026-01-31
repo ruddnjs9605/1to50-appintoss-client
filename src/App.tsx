@@ -1,5 +1,6 @@
 import { closeView, graniteEvent } from "@apps-in-toss/web-framework";
 import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import Button from "./components/Button";
 import type { OneToFiftyResult } from "./game/types";
 import GamePage from "./pages/GamePage";
@@ -101,7 +102,7 @@ export default function App() {
     setIsExitOpen(false);
   };
 
-  let content: JSX.Element | null = null;
+  let content: ReactNode = null;
 
   if (isTermsPage) {
     content = <Terms />;
