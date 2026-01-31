@@ -15,6 +15,10 @@ export default defineConfig({
       build: 'tsc -b && vite build',
     },
   },
+  navigationBar: {
+    withBackButton: false,
+    withHomeButton: false,
+  },
   permissions: [],
   outdir: 'dist',
 });

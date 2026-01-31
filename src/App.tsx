@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { closeView, graniteEvent } from "@apps-in-toss/web-framework";
+import { useEffect, useState } from "react";
+import Button from "./components/Button";
 import type { OneToFiftyResult } from "./game/types";
 import GamePage from "./pages/GamePage";
 import Login from "./pages/Login";
@@ -18,8 +20,54 @@ export default function App() {
     useTossAuth();
   const [page, setPage] = useState<Page>("game");
   const [lastResult, setLastResult] = useState<OneToFiftyResult | null>(null);
+  const [isExitOpen, setIsExitOpen] = useState(false);
   const isTermsPage =
     typeof window !== "undefined" && window.location.pathname === "/terms";
+
+  useEffect(() => {
+    const preventZoom = (event: Event) => {
+      event.preventDefault();
+    };
+
+    document.addEventListener("gesturestart", preventZoom);
+    document.addEventListener("gesturechange", preventZoom);
+
+    return () => {
+      document.removeEventListener("gesturestart", preventZoom);
+      document.removeEventListener("gesturechange", preventZoom);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleExitRequest = () => {
+      setIsExitOpen(true);
+    };
+
+    const handlePopState = (event: PopStateEvent) => {
+      event.preventDefault();
+      handleExitRequest();
+      window.history.pushState(null, "", window.location.href);
+    };
+
+    if (typeof window !== "undefined") {
+      window.history.pushState(null, "", window.location.href);
+      window.addEventListener("popstate", handlePopState);
+    }
+
+    const removeBackEvent = graniteEvent?.addEventListener?.("backEvent", {
+      onEvent: handleExitRequest,
+      onError: (error) => {
+        console.warn("[navigation] backEvent error", error);
+      },
+    });
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+      if (typeof removeBackEvent === "function") {
+        removeBackEvent();
+      }
+    };
+  }, []);
 
   const handleLogin = async () => {
     try {
@@ -44,12 +92,21 @@ export default function App() {
     shareMyRecord(lastResult);
   };
 
-  if (isTermsPage) {
-    return <Terms />;
-  }
+  const handleConfirmExit = async () => {
+    setIsExitOpen(false);
+    await closeView();
+  };
 
-  if (!isLoggedIn && status !== "unknown") {
-    return (
+  const handleCancelExit = () => {
+    setIsExitOpen(false);
+  };
+
+  let content: JSX.Element | null = null;
+
+  if (isTermsPage) {
+    content = <Terms />;
+  } else if (!isLoggedIn && status !== "unknown") {
+    content = (
       <Login
         onLogin={handleLogin}
         isChecking={isChecking}
@@ -57,10 +114,8 @@ export default function App() {
         error={error}
       />
     );
-  }
-
-  if (!isLoggedIn && status === "unknown") {
-    return (
+  } else if (!isLoggedIn && status === "unknown") {
+    content = (
       <Login
         onLogin={handleLogin}
         isChecking
@@ -68,30 +123,59 @@ export default function App() {
         error={"네트워크 상태가 불안정해요. 잠시 후 다시 시도해 주세요."}
       />
     );
+  } else {
+    const startGame = () => {
+      setLastResult(null);
+      setPage("game");
+    };
+
+    switch (page) {
+      case "game":
+        content = <GamePage onFinish={handleFinish} />;
+        break;
+      case "result":
+        content = (
+          <Result
+            result={lastResult}
+            onRetry={startGame}
+            onRanking={handleOpenLeaderboard}
+            onShare={handleShareRecord}
+            onHome={startGame}
+            user={user}
+          />
+        );
+        break;
+      case "ranking":
+        content = (
+          <Ranking
+            onBack={() => setPage("result")}
+            result={lastResult}
+            user={user}
+          />
+        );
+        break;
+      default:
+        content = null;
+    }
   }
 
-  const startGame = () => {
-    setLastResult(null);
-    setPage("game");
-  };
-
-  switch (page) {
-    case "game":
-      return <GamePage onFinish={handleFinish} />;
-    case "result":
-      return (
-        <Result
-          result={lastResult}
-          onRetry={startGame}
-          onRanking={handleOpenLeaderboard}
-          onShare={handleShareRecord}
-          onHome={startGame}
-          user={user}
-        />
-      );
-    case "ranking":
-      return <Ranking onBack={() => setPage("result")} result={lastResult} user={user} />;
-    default:
-      return null;
-  }
+  return (
+    <>
+      {content}
+      {isExitOpen && (
+        <div className="exit-modal" role="dialog" aria-modal="true">
+          <div className="exit-modal-backdrop" />
+          <div className="exit-modal-card">
+            <h3 className="exit-modal-title">1to50을 종료할까요?</h3>
+            <div className="exit-modal-actions">
+              <Button variant="ghost" onClick={handleCancelExit}>
+                취소
+              </Button>
+              <Button onClick={handleConfirmExit}>종료하기</Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
 }

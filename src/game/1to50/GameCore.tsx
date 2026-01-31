@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import type { ClickResult } from "./useGame";
 import { useGame } from "./useGame";
 import { useTimer } from "./useTimer";
-import Header from "../../components/Header";
 import GameBoard from "../../components/GameBoard";
 import Button from "../../components/Button";
 import Overlay from "../../components/Overlay";
@@ -21,7 +20,6 @@ export default function GameCore({ onFinish }: OneToFiftyGameCoreProps) {
   const [timerKey, setTimerKey] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const elapsed = useTimer(game.started && !game.cleared && !isPaused, timerKey);
-  const [theme, setTheme] = useState<"light" | "dark">("light");
   const { bestTime, addRecord } = useRanking();
   const [isNewRecord, setIsNewRecord] = useState(false);
   const submittedRef = useRef(false);
@@ -128,14 +126,6 @@ export default function GameCore({ onFinish }: OneToFiftyGameCoreProps) {
   };
 
   useEffect(() => {
-    document.body.classList.toggle("dark", theme === "dark");
-  }, [theme]);
-
-  const toggleTheme = () => {
-    setTheme((prev) => (prev === "light" ? "dark" : "light"));
-  };
-
-  useEffect(() => {
     if (!game.cleared) return;
     if (elapsed <= 0) return;
     const { newRecord } = addRecord(elapsed);
@@ -210,16 +200,17 @@ export default function GameCore({ onFinish }: OneToFiftyGameCoreProps) {
 
   return (
     <div className="game-container">
-      <Header
-        elapsed={elapsed}
-        theme={theme}
-        onToggleTheme={toggleTheme}
-        onPause={
-          game.started && !game.cleared && !isPaused
-            ? () => setIsPaused(true)
-            : undefined
-        }
-      />
+      <div className="game-toolbar">
+        <div>
+          <h2 className="game-title">1 to 50</h2>
+          <div className="timer">⏱ {elapsed.toFixed(2)}초</div>
+        </div>
+        {game.started && !game.cleared && !isPaused ? (
+          <button className="pause-toggle" onClick={() => setIsPaused(true)}>
+            일시정지
+          </button>
+        ) : null}
+      </div>
 
       <div className="best-record">
         <span>

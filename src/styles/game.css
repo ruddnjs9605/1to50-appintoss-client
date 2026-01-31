@@ -1,5 +1,6 @@
 .game-container {
-  padding: 20px 16px;
+  padding: calc(20px + env(safe-area-inset-top)) 16px
+    calc(20px + env(safe-area-inset-bottom));
   width: 100%;
   max-width: 480px;
   margin: 0 auto;
@@ -7,11 +8,12 @@
 
 @media (max-width: 400px) {
   .game-container {
-    padding: 16px 12px;
+    padding: calc(16px + env(safe-area-inset-top)) 12px
+      calc(16px + env(safe-area-inset-bottom));
   }
 }
 
-.header {
+.game-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -19,27 +21,9 @@
   margin-bottom: 8px;
 }
 
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.title {
+.game-title {
   margin: 0 0 6px 0;
   font-size: 26px;
-}
-
-.theme-toggle {
-  border: 1px solid var(--muted);
-  background: var(--card);
-  color: var(--text);
-  border-radius: 999px;
-  padding: 8px 12px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease;
 }
 
 .pause-toggle {
@@ -54,18 +38,9 @@
   transition: background 0.2s ease, border-color 0.2s ease;
 }
 
-.theme-toggle:hover {
-  background: rgba(0, 0, 0, 0.04);
-  border-color: var(--primary);
-}
-
 .pause-toggle:hover {
   background: rgba(0, 0, 0, 0.04);
   border-color: var(--primary);
-}
-
-body.dark .theme-toggle:hover {
-  background: rgba(255, 255, 255, 0.06);
 }
 
 body.dark .pause-toggle:hover {
