@@ -39,6 +39,7 @@ async function fetchMe(
     headers: { "X-User-Id": String(userId) },
   });
 
+  // 토스 검수 요구사항: 연결 해제된 경우 반드시 재동의가 필요함.
   if (response.status === 401) {
     return { status: "loggedOut", user: null };
   }

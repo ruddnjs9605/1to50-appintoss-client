@@ -5,6 +5,8 @@ type Props = {
   isChecking?: boolean;
   isLoggingIn?: boolean;
   error?: string | null;
+  statusLabel?: string;
+  statusMessage?: string;
 };
 
 export default function Login({
@@ -12,8 +14,13 @@ export default function Login({
   isChecking,
   isLoggingIn,
   error,
+  statusLabel,
+  statusMessage,
 }: Props) {
   const isLoading = Boolean(isChecking || isLoggingIn);
+  const resolvedStatusLabel = statusLabel ?? "로그인 전";
+  const resolvedStatusMessage =
+    statusMessage ?? "토스 앱에서 로그인하면 자동으로 게임이 시작돼요.";
 
   return (
     <div className="page">
@@ -29,11 +36,9 @@ export default function Login({
         <div className="page-card">
           <div className="page-row">
             <strong>로그인 상태</strong>
-            <span className="status-badge">로그인 전</span>
+            <span className="status-badge">{resolvedStatusLabel}</span>
           </div>
-          <p className="page-muted">
-            토스 앱에서 로그인하면 자동으로 게임이 시작돼요.
-          </p>
+          <p className="page-muted">{resolvedStatusMessage}</p>
         </div>
 
         {error ? (

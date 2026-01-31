@@ -17,11 +17,11 @@ import "./styles/pages.css";
 type Page = "game" | "result" | "ranking";
 
 export default function App() {
-  const { isLoggedIn, isChecking, isLoggingIn, error, status, login, user } =
-    useTossAuth();
+  const { isChecking, isLoggingIn, error, status, login, user } = useTossAuth();
   const [page, setPage] = useState<Page>("game");
   const [lastResult, setLastResult] = useState<OneToFiftyResult | null>(null);
   const [isExitOpen, setIsExitOpen] = useState(false);
+  const [canEnterGame, setCanEnterGame] = useState(false);
   const isTermsPage =
     typeof window !== "undefined" && window.location.pathname === "/terms";
 
@@ -38,6 +38,26 @@ export default function App() {
       document.removeEventListener("gesturechange", preventZoom);
     };
   }, []);
+
+  useEffect(() => {
+    let timerId: number | null = null;
+
+    if (status === "loggedIn") {
+      // 토스 검수 요구사항: 최초 화면은 로그인 화면 유지 후 자동 진입.
+      setCanEnterGame(false);
+      timerId = window.setTimeout(() => {
+        setCanEnterGame(true);
+      }, 2000);
+    } else {
+      setCanEnterGame(false);
+    }
+
+    return () => {
+      if (timerId !== null) {
+        window.clearTimeout(timerId);
+      }
+    };
+  }, [status]);
 
   useEffect(() => {
     const handleExitRequest = () => {
@@ -102,26 +122,38 @@ export default function App() {
     setIsExitOpen(false);
   };
 
+  const isAutoLoginPending = status === "loggedIn" && !canEnterGame;
+  const isLoginChecking = status === "checking" || isAutoLoginPending;
+  const loginStatusLabel =
+    status === "loggedIn" && !canEnterGame
+      ? "자동 로그인 중"
+      : status === "checking"
+      ? "로그인 확인 중"
+      : status === "unknown"
+      ? "상태 확인 불가"
+      : "로그인 전";
+  const loginStatusMessage =
+    status === "loggedIn" && !canEnterGame
+      ? "잠시 후 게임이 시작돼요."
+      : status === "unknown"
+      ? "네트워크 상태를 확인해 주세요."
+      : undefined;
+  const loginError =
+    status === "unknown" ? "네트워크 상태가 불안정해요." : error;
+
   let content: ReactNode = null;
 
   if (isTermsPage) {
     content = <Terms />;
-  } else if (!isLoggedIn && status !== "unknown") {
+  } else if (status !== "loggedIn" || !canEnterGame) {
     content = (
       <Login
         onLogin={handleLogin}
-        isChecking={isChecking}
+        isChecking={isChecking || isLoginChecking}
         isLoggingIn={isLoggingIn}
-        error={error}
-      />
-    );
-  } else if (!isLoggedIn && status === "unknown") {
-    content = (
-      <Login
-        onLogin={handleLogin}
-        isChecking
-        isLoggingIn={isLoggingIn}
-        error={"네트워크 상태가 불안정해요. 잠시 후 다시 시도해 주세요."}
+        error={loginError}
+        statusLabel={loginStatusLabel}
+        statusMessage={loginStatusMessage}
       />
     );
   } else {
